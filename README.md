@@ -84,7 +84,7 @@ tags: |
 
 ```yaml
 - name: Create Devin Session
-  uses: aaronsteers/devin-action@v1
+  uses: airbytehq/devin-action@v1
   with:
     prompt-text: "Please review this code and suggest improvements"
     devin-token: ${{ secrets.DEVIN_TOKEN }}
@@ -99,7 +99,7 @@ This action is designed to work with slash commands in issue and PR comments. Th
 
 ```yaml
 - name: Run Devin from Comment
-  uses: aaronsteers/devin-action@v1
+  uses: airbytehq/devin-action@v1
   with:
     comment-id: ${{ github.event.comment.id }}
     issue-number: ${{ github.event.issue.number }}
@@ -112,7 +112,7 @@ This action is designed to work with slash commands in issue and PR comments. Th
 
 ```yaml
 - name: Run Devin with Playbook Macro
-  uses: aaronsteers/devin-action@v1
+  uses: airbytehq/devin-action@v1
   with:
     playbook-macro: "!fix-ci-failures"
     issue-number: ${{ github.event.issue.number }}
@@ -136,7 +136,7 @@ You can provide either a session ID or a full session URL:
 ```yaml
 # Using a session ID
 - name: Send Message to Existing Devin Session
-  uses: aaronsteers/devin-action@v1
+  uses: airbytehq/devin-action@v1
   with:
     reuse-session: 'c002a79b24b74f5b918ebc7dc6c5205b'
     prompt-text: |
@@ -147,7 +147,7 @@ You can provide either a session ID or a full session URL:
 
 # Using a session URL (session ID is automatically extracted)
 - name: Send Message to Existing Devin Session
-  uses: aaronsteers/devin-action@v1
+  uses: airbytehq/devin-action@v1
   with:
     reuse-session: 'https://app.devin.ai/sessions/c002a79b24b74f5b918ebc7dc6c5205b'
     prompt-text: |
@@ -166,7 +166,7 @@ Use `wait-for-stopped-status` to poll the Devin session until it reaches any non
 **Wait during session creation (single step):**
 
 ```yaml
-- uses: aaronsteers/devin-action@v1
+- uses: airbytehq/devin-action@v1
   id: devin
   with:
     devin-token: ${{ secrets.DEVIN_AI_API_KEY }}
@@ -178,7 +178,7 @@ Use `wait-for-stopped-status` to poll the Devin session until it reaches any non
 **Wait on an existing session (multi-step):**
 
 ```yaml
-- uses: aaronsteers/devin-action@v1
+- uses: airbytehq/devin-action@v1
   id: create
   with:
     devin-token: ${{ secrets.DEVIN_AI_API_KEY }}
@@ -187,7 +187,7 @@ Use `wait-for-stopped-status` to poll the Devin session until it reaches any non
 
 # ... other steps ...
 
-- uses: aaronsteers/devin-action@v1
+- uses: airbytehq/devin-action@v1
   id: wait
   with:
     devin-token: ${{ secrets.DEVIN_AI_API_KEY }}
@@ -228,7 +228,7 @@ This is particularly useful for automated triage workflows where one Devin sessi
 
 ```yaml
 - name: Analyze Devin Session
-  uses: aaronsteers/devin-action@v1
+  uses: airbytehq/devin-action@v1
   with:
     prompt-text: "Triage the linked session and identify the root cause of the reported issue."
     devin-token: ${{ secrets.DEVIN_TOKEN }}
@@ -247,7 +247,7 @@ When `session-links` is provided without `advanced-mode`, the action automatical
 
 ```yaml
 - name: Analyze Session (auto-detect)
-  uses: aaronsteers/devin-action@v1
+  uses: airbytehq/devin-action@v1
   with:
     prompt-text: "Review this session and summarize what happened."
     devin-token: ${{ secrets.DEVIN_TOKEN }}
@@ -261,7 +261,7 @@ Use `max-acu-limit` to cap the compute budget for v3 sessions:
 
 ```yaml
 - name: Budget-limited Session
-  uses: aaronsteers/devin-action@v1
+  uses: airbytehq/devin-action@v1
   with:
     prompt-text: "Quick analysis of this session."
     devin-token: ${{ secrets.DEVIN_TOKEN }}
@@ -288,7 +288,7 @@ YAML is usually easier to read inside a workflow since you can skip the quotes a
 ```yaml
 - name: Run Devin with Structured Output
   id: devin
-  uses: aaronsteers/devin-action@v1
+  uses: airbytehq/devin-action@v1
   with:
     devin-token: ${{ secrets.DEVIN_AI_API_KEY }}
     org-id: ${{ vars.DEVIN_ORG_ID }}
@@ -330,7 +330,7 @@ Plain JSON also works unchanged:
 
 ```yaml
 - name: Run Devin with Structured Output
-  uses: aaronsteers/devin-action@v1
+  uses: airbytehq/devin-action@v1
   with:
     devin-token: ${{ secrets.DEVIN_AI_API_KEY }}
     prompt-text: "Review this PR and keep the structured output up to date."
@@ -361,7 +361,7 @@ For longer schemas, store them in a `.yaml` (or `.json`) file and pass the conte
     } >> "$GITHUB_OUTPUT"
 
 - name: Run Devin with Structured Output
-  uses: aaronsteers/devin-action@v1
+  uses: airbytehq/devin-action@v1
   with:
     devin-token: ${{ secrets.DEVIN_AI_API_KEY }}
     org-id: ${{ vars.DEVIN_ORG_ID }}
@@ -400,7 +400,7 @@ When using the slash command dispatch workflow here in this repo, the following 
 
 ## Example Executions
 
-For execution examples, check the [pinned issues](https://github.com/aaronsteers/devin-action/issues) here in this repo.
+For execution examples, check the [pinned issues](https://github.com/airbytehq/devin-action/issues) here in this repo.
 
 ## Example Workflow [Slash Commands]
 
@@ -433,7 +433,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run AI Help
-        uses: aaronsteers/devin-action@v1
+        uses: airbytehq/devin-action@v1
         with:
           comment-id: ${{ github.event.client_payload.slash_command.args.named.comment-id || inputs.comment-id }}
           issue-number: ${{ github.event.client_payload.slash_command.args.named.issue || inputs.issue-number }}
