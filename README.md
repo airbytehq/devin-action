@@ -22,7 +22,8 @@ A reusable GitHub action which calls out to Devin.ai, creating a new Devin sessi
 | `comment-id`   | Comment ID for context and reply chaining                                  | false    |          |
 | `issue-number` | Issue number for context gathering                                          | false    |          |
 | `playbook-macro` | Playbook macro for structured workflows - should start with '!' (e.g., !my_playbook) | false    |          |
-| `prompt-text`  | Additional custom prompt text                                               | false    |          |
+| `prompt-text`  | Additional custom prompt text. Values over ~128 KiB exceed Linux's per-environment-variable limit; use `prompt-file` for larger prompts. | false | |
+| `prompt-file` | Path to a file containing the prompt text. Use this for prompts over ~128 KiB, which exceed Linux's per-environment-variable limit for `prompt-text`. | false | |
 | `devin-token`  | Devin API Token (required for authentication)                              | true     |          |
 | `github-token` | GitHub Token (required for posting comments and accessing repo context)    | false    |          |
 | `start-message`| Custom message for the start comment                                       | false    | 🤖 **Starting Devin AI session...** |

@@ -16,7 +16,7 @@ inputs:
     description: "Playbook macro (optional, for structured workflows) - should start with '!' (e.g., !my_playbook)"
     required: false
   prompt-text:
-    description: "Additional prompt text (optional). Mutually exclusive with prompt-file."
+    description: "Additional prompt text (optional). Mutually exclusive with prompt-file. Values over ~128 KiB exceed Linux's per-environment-variable limit; use prompt-file for larger prompts."
     required: false
   prompt-file:
     description: "Path to a file containing the prompt text (optional, relative to the repository root). Use this instead of prompt-text to avoid YAML quoting/escaping issues with multi-line prompts. Mutually exclusive with prompt-text."
@@ -120,7 +120,7 @@ runs:
         DEVIN_STRUCTURED_OUTPUT_SCHEMA: ${{ inputs.structured-output-schema }}
         INPUT_REUSE_SESSION: ${{ inputs.reuse-session }}
         INPUT_TAGS: ${{ inputs.tags }}
-        INPUT_PROMPT_TEXT: ${{ inputs.prompt-text }}
+        HAS_PROMPT_TEXT: ${{ inputs.prompt-text != '' }}
         INPUT_PROMPT_FILE: ${{ inputs.prompt-file }}
         INPUT_API_VERSION: ${{ inputs.api-version }}
         INPUT_ADVANCED_MODE: ${{ inputs.advanced-mode }}
@@ -137,7 +137,7 @@ runs:
         fi
 
         # Check mutual exclusivity: prompt-text and prompt-file
-        if [[ -n "$INPUT_PROMPT_TEXT" && -n "$INPUT_PROMPT_FILE" ]]; then
+        if [[ "$HAS_PROMPT_TEXT" == "true" && -n "$INPUT_PROMPT_FILE" ]]; then
           echo "::error::The 'prompt-text' and 'prompt-file' inputs are mutually exclusive. Use one or the other, not both."
           exit 1
         fi
@@ -329,6 +329,10 @@ runs:
           fi
         done
 
+        prompt_path=$(mktemp "$RUNNER_TEMP/devin-prompt.XXXXXX")
+        printf '%s' "$final_prompt" > "$prompt_path"
+        echo "prompt-path=$prompt_path" >> "$GITHUB_OUTPUT"
+
         echo "Final prompt built successfully"
         echo "::group::📝 Devin Prompt Preview"
         printf '%s\n' "$final_prompt"
@@ -374,7 +378,7 @@ runs:
         INPUT_COMMENT_ID: ${{ inputs.comment-id }}
         INPUT_ISSUE_NUMBER: ${{ inputs.issue-number }}
         INPUT_PLAYBOOK_MACRO: ${{ inputs.playbook-macro }}
-        INPUT_PROMPT_TEXT: ${{ inputs.prompt-text }}
+        HAS_PROMPT_TEXT: ${{ inputs.prompt-text != '' }}
         INPUT_PROMPT_FILE: ${{ inputs.prompt-file }}
         INPUT_ADVANCED_MODE: ${{ inputs.advanced-mode }}
         INPUT_SESSION_LINKS: ${{ inputs.session-links }}
@@ -397,7 +401,7 @@ runs:
         echo "comment-id: $([[ -n "$INPUT_COMMENT_ID" ]] && echo "SET ($INPUT_COMMENT_ID)" || echo 'NOT SET')"
         echo "issue-number: $([[ -n "$INPUT_ISSUE_NUMBER" ]] && echo "SET ($INPUT_ISSUE_NUMBER)" || echo 'NOT SET')"
         echo "playbook-macro: $([[ -n "$INPUT_PLAYBOOK_MACRO" ]] && echo "SET ($INPUT_PLAYBOOK_MACRO)" || echo 'NOT SET')"
-        echo "prompt-text: $([[ -n "$INPUT_PROMPT_TEXT" ]] && echo 'SET' || echo 'NOT SET')"
+        echo "prompt-text: $([[ "$HAS_PROMPT_TEXT" == "true" ]] && echo 'SET' || echo 'NOT SET')"
         echo "prompt-file: $([[ -n "$INPUT_PROMPT_FILE" ]] && echo "SET ($INPUT_PROMPT_FILE)" || echo 'NOT SET')"
         echo "advanced-mode: $([[ -n "$INPUT_ADVANCED_MODE" ]] && echo "SET ($INPUT_ADVANCED_MODE)" || echo 'NOT SET')"
         echo "session-links: $([[ -n "$INPUT_SESSION_LINKS" ]] && echo 'SET' || echo 'NOT SET')"
@@ -456,7 +460,7 @@ runs:
         DEVIN_ORG_ID: ${{ inputs.org-id }}
         RESOLVED_SESSION_ID: ${{ steps.resolve-vars.outputs.session-id }}
         RESOLVED_SESSION_URL: ${{ steps.resolve-vars.outputs.session-url }}
-        BUILD_PROMPT: ${{ steps.build-prompt.outputs.prompt }}
+        PROMPT_PATH: ${{ steps.build-prompt.outputs.prompt-path }}
         INPUT_DRY_RUN: ${{ inputs.dry-run }}
       run: |
         set -euo pipefail
@@ -470,15 +474,14 @@ runs:
         echo "Session URL: $session_url"
         echo "Org ID: ${DEVIN_ORG_ID:-(not set)}"
 
-        # Decode the base64-encoded prompt
-        decoded_prompt=$(printf '%s' "$BUILD_PROMPT" | base64 -d || { echo "Error: Failed to decode base64 prompt"; exit 1; })
-        echo "Prompt length: ${#decoded_prompt} characters"
+        [[ -f "$PROMPT_PATH" ]] || { echo "::error::Prompt file not found: $PROMPT_PATH"; exit 1; }
+        echo "Prompt length: $(wc -m < "$PROMPT_PATH") characters"
 
         # Prepare the message API request payload
         jq -n \
-          --arg message "$decoded_prompt" \
+          --rawfile message "$PROMPT_PATH" \
           '{
-            "message": $message
+            "message": ($message | sub("\n+$"; ""))
           }' > devin_request.json
 
         echo "::group::📤 Devin Message API Request"
@@ -548,7 +551,7 @@ runs:
         INPUT_PLAYBOOK_MACRO: ${{ inputs.playbook-macro }}
         INPUT_TAGS: ${{ inputs.tags }}
         INPUT_DRY_RUN: ${{ inputs.dry-run }}
-        BUILD_PROMPT: ${{ steps.build-prompt.outputs.prompt }}
+        PROMPT_PATH: ${{ steps.build-prompt.outputs.prompt-path }}
         GITHUB_REPOSITORY_VALUE: ${{ github.repository }}
         GITHUB_REF_NAME_VALUE: ${{ github.ref_name }}
       run: |
@@ -580,9 +583,8 @@ runs:
 
         echo "Creating new Devin session..."
 
-        # Decode the base64-encoded prompt
-        decoded_prompt=$(printf '%s' "$BUILD_PROMPT" | base64 -d || { echo "Error: Failed to decode base64 prompt"; exit 1; })
-        echo "Prompt length: ${#decoded_prompt} characters"
+        [[ -f "$PROMPT_PATH" ]] || { echo "::error::Prompt file not found: $PROMPT_PATH"; exit 1; }
+        echo "Prompt length: $(wc -m < "$PROMPT_PATH") characters"
 
         # Build automatic tags
         automatic_tags=("gh-actions-trigger")
@@ -648,7 +650,7 @@ runs:
 
         # Build v3 request payload
         jq -n \
-          --arg prompt "$decoded_prompt" \
+          --rawfile prompt "$PROMPT_PATH" \
           --arg advanced_mode "$advanced_mode" \
           --argjson tags "$tags_array" \
           --argjson session_links "$session_links_json" \
@@ -659,7 +661,7 @@ runs:
           --arg structured_output_required "$structured_output_required" \
           --argjson structured_output_schema "$structured_output_schema_json" \
           '{
-            "prompt": $prompt,
+            "prompt": ($prompt | sub("\n+$"; "")),
             "tags": $tags
           }
           | if $advanced_mode != "" then . + {"advanced_mode": $advanced_mode} else . end
