@@ -304,7 +304,7 @@ runs:
             echo "::error::The prompt-file '$INPUT_PROMPT_FILE' is empty."
             exit 1
           fi
-        prompt_parts+=("$file_content")
+          prompt_parts+=("$file_content")
         # Add custom prompt text if provided
         elif [[ -n "$INPUT_PROMPT_TEXT" ]]; then
           echo "👀 Found 'prompt-text' input"
@@ -337,7 +337,7 @@ runs:
         # Save prompt to output (properly escaped for safe YAML/JSON processing)
         # Use base64 encoding to safely handle any special characters including quotes
         echo "prompt<<EOF" >> "$GITHUB_OUTPUT"
-        printf '%s' "$final_prompt" | base64 | tr -d '\n' >> $GITHUB_OUTPUT
+        printf '%s' "$final_prompt" | base64 | tr -d '\n' >> "$GITHUB_OUTPUT"
         echo >> "$GITHUB_OUTPUT"  # Add newline before EOF
         echo "EOF" >> "$GITHUB_OUTPUT"
 
