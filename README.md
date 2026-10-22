@@ -6,6 +6,8 @@ A reusable GitHub action which calls out to Devin.ai, creating a new Devin sessi
 - update the current PR
 - open an new PR if needed
 
+See the Usage section below for complete workflow examples.
+
 ## Features
 
 - ✅ Creates Devin.ai sessions with custom prompts
