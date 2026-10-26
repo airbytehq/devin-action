@@ -27,6 +27,7 @@ A reusable GitHub action which calls out to Devin.ai, creating a new Devin sessi
 | `devin-token`  | Devin API Token (required for authentication)                              | true     |          |
 | `github-token` | GitHub Token (required for posting comments and accessing repo context)    | false    |          |
 | `start-message`| Custom message for the start comment                                       | false    | 🤖 **Starting Devin AI session...** |
+| `session-params` | Session parameters as `key=value` pairs (CSV or line-delimited), e.g. `dry_run=true`. Also read from the first line of the triggering comment. See [Session Parameters](#session-parameters). | false | |
 | `tags`         | Additional tags to apply to the Devin session (supports CSV or line-delimited format). Automatic tags are always added: `gh-actions-trigger` and `playbook-{macro-name}` if playbook-macro is provided. Cannot be used with `reuse-session`. | false    |          |
 | `reuse-session`| Existing Devin v3 session ID or URL to inject a message into. Accepts either a session ID or a full URL (e.g., `https://app.devin.ai/sessions/abc123`). When provided, sends a message to an existing session instead of creating a new one. Requires `org-id` and is mutually exclusive with `tags`. | false    |          |
 | `wait-for-stopped-status` | If `true`, polls until `status_detail` is any non-`working` state. | false | `false` |
@@ -388,8 +389,32 @@ The action intelligently builds prompts by combining available context:
 2. **Issue Context**: If `issue-number` is provided, includes issue title, description, and author  
 3. **Playbook Macro Reference**: If `playbook-macro` is provided, instructs Devin to use the specified playbook macro
 4. **Custom Prompt**: If `prompt-text` is provided, includes additional custom instructions
+5. **Session Parameters**: Instructions for any matching [session parameter](#session-parameters) go first
 
 All provided inputs are concatenated to create a comprehensive prompt for Devin.
+
+## Session Parameters
+
+A session parameter changes how the whole session behaves, for any playbook, without editing the playbook. Pass it in the slash command (`/ai-triage dry_run=true`) or through the `session-params` input (`session-params: dry_run=true`).
+
+The action reads `key=value` pairs from the `session-params` input and from the first line of the triggering comment. When `session-params/<key>.md` exists in this action and its frontmatter `values:` lists the given value, the file's instructions are put at the very top of the prompt, before the comment, issue and playbook macro. Other pairs are ignored by the action (the comment text still reaches Devin as usual).
+
+| Parameter | Effect |
+|-----------|--------|
+| `dry_run=true` | Devin does the full analysis but changes nothing (no labels, issues, PRs, comments, child sessions or Slack messages) and posts one report of what it would have done. See [`session-params/dry_run.md`](session-params/dry_run.md). |
+
+To add a parameter, add `session-params/<key>.md`:
+
+```markdown
+---
+values: true
+---
+Instructions that apply to the whole session when <key>=true.
+```
+
+Keep these files generic: this repository is public.
+
+The `dry-run` input is unrelated: it skips calling the Devin API.
 
 ## Available Slash Commands
 
