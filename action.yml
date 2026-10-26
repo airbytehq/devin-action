@@ -21,6 +21,9 @@ inputs:
   prompt-file:
     description: "Path to a file containing the prompt text (optional, relative to the repository root). Use this instead of prompt-text to avoid YAML quoting/escaping issues with multi-line prompts. Mutually exclusive with prompt-text."
     required: false
+  session-params:
+    description: "Session parameters as key=value pairs (optional, supports CSV or line-delimited format), e.g. 'dry_run=true'. Parameters are also read from the first line of the triggering comment (e.g. '/ai-triage dry_run=true'). A parameter with a matching session-params/<key>.md file in this action puts that file's instructions at the top of the prompt."
+    required: false
   devin-token:
     description: |
       Devin API Token (required for authentication).
@@ -257,11 +260,14 @@ runs:
         INPUT_PROMPT_FILE: ${{ inputs.prompt-file }}
         INPUT_PROMPT_TEXT: ${{ inputs.prompt-text }}
         GITHUB_REPOSITORY_VALUE: ${{ github.repository }}
+        INPUT_SESSION_PARAMS: ${{ inputs.session-params }}
+        ACTION_PATH: ${{ github.action_path }}
       run: |
         set -euo pipefail
 
         # Initialize prompt components
         prompt_parts=()
+        comment_first_line=""
 
         # Add comment context if comment-id is provided
         if [[ -n "$INPUT_COMMENT_ID" ]]; then
@@ -270,6 +276,8 @@ runs:
           comment_body=$(jq -r .body <<< "$COMMENT_JSON")
           comment_author=$(jq -r .user.login <<< "$COMMENT_JSON")
           comment_url=$(jq -r .html_url <<< "$COMMENT_JSON")
+
+          comment_first_line=${comment_body%%$'\n'*}
 
           prompt_parts+=("Comment URL: ${comment_url}")
           prompt_parts+=("Comment from @${comment_author}: ${comment_body}")
@@ -311,6 +319,37 @@ runs:
           prompt_parts+=("$INPUT_PROMPT_TEXT")
         else
           echo "👀 No 'prompt-text' or 'prompt-file' input found"
+        fi
+
+        # Session parameters: key=value pairs from the session-params input and from the
+        # first line of the triggering comment. A parameter whose session-params/<key>.md
+        # file lists the given value puts that file's instructions at the top of the prompt.
+        param_parts=()
+        seen_params=" "
+        while IFS= read -r pair; do
+          pair="${pair#"${pair%%[![:space:]]*}"}"
+          pair="${pair%"${pair##*[![:space:]]}"}"
+          [[ "$pair" =~ ^([a-z][a-z0-9_]*)=([^[:space:]]+)$ ]] || continue
+          key="${BASH_REMATCH[1]}"
+          value="${BASH_REMATCH[2]}"
+          [[ "$seen_params" == *" ${key} "* ]] && continue
+          seen_params+="${key} "
+          param_file="${ACTION_PATH}/session-params/${key}.md"
+          [[ -f "$param_file" ]] || continue
+          allowed=$(awk 'NR==1 && $0=="---" {fm=1; next} fm && $0=="---" {exit} fm && /^values:/ {sub(/^values:[[:space:]]*/, ""); print}' "$param_file")
+          if [[ ! " ${allowed//,/ } " == *" ${value} "* ]]; then
+            echo "👀 Session parameter ${key}=${value} not applied (allowed values: ${allowed})"
+            continue
+          fi
+          instructions=$(awk 'NR==1 && $0=="---" {fm=1; next} fm && $0=="---" {fm=0; next} !fm' "$param_file")
+          echo "👀 Applying session parameter ${key}=${value}"
+          param_parts+=("SESSION PARAMETER ${key}=${value}:"$'\n'"${instructions}")
+        done < <(
+          printf '%s\n' "$INPUT_SESSION_PARAMS" | tr ',' '\n'
+          printf '%s\n' "$comment_first_line" | tr ' ' '\n'
+        )
+        if [[ ${#param_parts[@]} -gt 0 ]]; then
+          prompt_parts=("${param_parts[@]}" "${prompt_parts[@]}")
         fi
 
         echo "👀 Combining all ${#prompt_parts[@]} prompt parts"

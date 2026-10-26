@@ -33,6 +33,23 @@ jobs:
           dry-run: "true"
         continue-on-error: true
 
+      - name: Test Action applies session parameters
+        id: test-session-params
+        uses: ./
+        with:
+          prompt-text: "This is a test of session parameters"
+          session-params: "dry_run=true, unknown_param=1"
+          devin-token: "test-token-placeholder"
+          org-id: "org-test-placeholder"
+          dry-run: "true"
+
+      - name: Check session parameter prompt
+        env:
+          PROMPT: ${{ steps.test-session-params.outputs.prompt_readable }}
+        run: |
+          printf '%s\n' "$PROMPT" | head -1 | grep -qx 'SESSION PARAMETER dry_run=true:'
+          ! printf '%s\n' "$PROMPT" | grep -q 'unknown_param'
+
       - name: Check test results
         run: |
           echo "Minimal dry-run outcome: ${{ steps.test-minimal.outcome }}"
