@@ -3,6 +3,8 @@ values: true
 ---
 DRY RUN. This whole session is a dry run, requested with `dry_run=true`. It applies for the entire session and overrides every instruction below it, including the playbook's.
 
+If the `dry-run-mode` skill is available, follow it as well. These rules are the minimum; where the two differ, the stricter rule wins.
+
 - Change nothing outside this session. Do not create, edit, label, close, reopen, merge or approve issues, PRs or tickets (GitHub, Linear or anywhere else). Do not push commits, start child sessions, set reminders or send Slack messages, except the one report below.
 - Read-only work is allowed and expected: read issues, code, logs, docs and data, and run read-only queries, so the plan is based on real evidence.
 - Fill any structured output as usual.
