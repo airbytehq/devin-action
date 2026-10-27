@@ -359,6 +359,7 @@ runs:
       if: inputs.comment-id || inputs.issue-number
       uses: peter-evans/create-or-update-comment@v4
       id: comment-start
+      continue-on-error: true
       with:
         token: ${{ inputs.github-token }}
         comment-id: ${{ inputs.comment-id }}
@@ -366,6 +367,11 @@ runs:
         body: |
           > ${{ inputs.start-message || '🤖 **Starting Devin AI session...**' }}
           >
+
+    - name: Warn when start comment cannot be posted
+      if: steps.comment-start.outcome == 'failure'
+      shell: bash
+      run: echo "::warning::Could not post/update the Devin status comment (GitHub API error); the Devin session itself is unaffected."
 
     - name: Resolve session vars
       id: resolve-vars
@@ -864,6 +870,8 @@ runs:
     - name: Append success comment
       if: steps.comment-start.outputs.comment-id && success()
       uses: peter-evans/create-or-update-comment@v4
+      id: comment-success
+      continue-on-error: true
       with:
         token: ${{ inputs.github-token }}
         comment-id: ${{ steps.comment-start.outputs.comment-id }}
@@ -873,9 +881,15 @@ runs:
           >
           > ✅ **Devin AI session ${{ inputs.reuse-session != '' && 'message sent' || 'created' }} successfully!**
 
+    - name: Warn when success comment cannot be updated
+      if: steps.comment-success.outcome == 'failure'
+      shell: bash
+      run: echo "::warning::Could not post/update the Devin status comment (GitHub API error); the Devin session itself is unaffected."
+
     - name: Append failure comment
       if: failure() && steps.comment-start.outputs.comment-id
       uses: peter-evans/create-or-update-comment@v4
+      continue-on-error: true
       with:
         token: ${{ inputs.github-token }}
         comment-id: ${{ steps.comment-start.outputs.comment-id }}
